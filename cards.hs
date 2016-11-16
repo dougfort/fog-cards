@@ -71,13 +71,25 @@ newdeck =
 playdecks :: [Card]
 playdecks = concat $ Prelude.replicate 2 newdeck
 
-board :: IO (Seq (Seq Card))
+data CardColumn = CardColumn { cards :: [Card]
+                             , visible :: Int
+                             } deriving (Show)
+
+board :: IO (Seq (Seq CardColumn))
 board = return (Data.Sequence.replicate 10 empty)
 
 -- | main entry point
 main :: IO ()
-main = do
-  cs <- fromList <$> shuffle playdecks
-  b <- board
-  print cs
-  print b
+main =
+    mainloop
+  where
+    mainloop :: IO ()
+    mainloop = do b <- newgame
+                  print b
+                  return ()
+
+-- | start a new game
+newgame :: IO (Seq (Seq CardColumn))
+newgame = do
+    cs <- fromList <$> shuffle playdecks
+    board
