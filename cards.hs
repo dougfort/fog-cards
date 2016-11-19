@@ -71,10 +71,13 @@ newdeck =
 playdecks :: [Card]
 playdecks = concat $ Prelude.replicate 2 newdeck
 
+-- | One column of cards, with an idex of the row where the cards startvisible
+-- | being visible. -1 means no visible cards (empty stack)
 data Stack = Stack { cards :: Seq Card
                    , visible :: Int
                    } deriving (Show)
 
+-- | The array of card stacks that forms the playing area
 type Tableau  = Seq Stack
 
 -- | main entry point
@@ -90,8 +93,16 @@ main =
 -- | start a new game
 newgame :: IO (Seq Card, Tableau)
 newgame = do
-    cs <- fromList <$> shuffle playdecks
-    return (cs, emptytableau)
+    deck <- fromList <$> shuffle playdecks
+    return (Data.Sequence.drop startcount deck, newtableau startsizes (Data.Sequence.take startcount deck))
   where
-    emptytableau = Data.Sequence.replicate 10 (Stack empty 0)
-    startvisible = [5, 4, 4, 5, 4, 4, 5, 5, 4, 5]
+    startsizes = [6, 5, 5, 6, 5, 5, 6, 5, 5, 6]
+    startcount = sum startsizes
+
+newtableau :: [Int] -> Seq Card -> Tableau
+newtableau ns deck = newtableau' ns deck Data.Sequence.empty
+
+newtableau' :: [Int] -> Seq Card -> Tableau -> Tableau
+newtableau' [] _ t = t
+newtableau' (n:ns) cs t =
+  newtableau' ns (Data.Sequence.drop n cs)  (t |> Stack {cards=Data.Sequence.take n cs, visible=n-1})
