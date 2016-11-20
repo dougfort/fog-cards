@@ -1,7 +1,7 @@
 {-
 
 -}
-import Data.Sequence
+import qualified Data.Sequence as SEQ
 
 import Shuffle
 
@@ -71,14 +71,14 @@ newdeck =
 playdecks :: [Card]
 playdecks = concat $ Prelude.replicate 2 newdeck
 
--- | One column of cards, with an idex of the row where the cards startvisible
+-- | One column of cards, with an idex of the row where the cards start
 -- | being visible. -1 means no visible cards (empty stack)
-data Stack = Stack { cards :: Seq Card
+data Stack = Stack { cards :: SEQ.Seq Card
                    , visible :: Int
                    } deriving (Show)
 
 -- | The array of card stacks that forms the playing area
-type Tableau  = Seq Stack
+type Tableau  = SEQ.Seq Stack
 
 -- | main entry point
 main :: IO ()
@@ -86,23 +86,32 @@ main =
     mainloop
   where
     mainloop :: IO ()
-    mainloop = do b <- newgame
-                  print b
+    mainloop = do (_, t) <- newgame
+                  displayTableau t
                   return ()
 
 -- | start a new game
-newgame :: IO (Seq Card, Tableau)
+newgame :: IO (SEQ.Seq Card, Tableau)
 newgame = do
-    deck <- fromList <$> shuffle playdecks
-    return (Data.Sequence.drop startcount deck, newtableau startsizes (Data.Sequence.take startcount deck))
+    deck <- SEQ.fromList <$> shuffle playdecks
+    return (SEQ.drop startcount deck, newtableau startsizes (SEQ.take startcount deck))
   where
     startsizes = [6, 5, 5, 6, 5, 5, 6, 5, 5, 6]
     startcount = sum startsizes
 
-newtableau :: [Int] -> Seq Card -> Tableau
-newtableau ns deck = newtableau' ns deck Data.Sequence.empty
+newtableau :: [Int] -> SEQ.Seq Card -> Tableau
+newtableau ns deck = newtableau' ns deck SEQ.empty
 
-newtableau' :: [Int] -> Seq Card -> Tableau -> Tableau
+newtableau' :: [Int] -> SEQ.Seq Card -> Tableau -> Tableau
 newtableau' [] _ t = t
 newtableau' (n:ns) cs t =
-  newtableau' ns (Data.Sequence.drop n cs)  (t |> Stack {cards=Data.Sequence.take n cs, visible=n-1})
+  newtableau' ns (SEQ.drop n cs)  (t SEQ.|> Stack {cards=SEQ.take n cs, visible=n-1})
+
+displayTableau :: Tableau -> IO ()
+displayTableau t = putStrLn $ displayStackRow 0 (SEQ.index t 0)
+
+-- | display one entry from the Stack cards item
+displayStackRow ::  Int -> Stack -> String
+displayStackRow i s | i < visible s = "XX"
+                    | i >= SEQ.length (cards s) = "  "
+                    | otherwise = show (SEQ.index (cards s) i)
