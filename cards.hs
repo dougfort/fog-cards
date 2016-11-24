@@ -1,6 +1,7 @@
 {-
 
 -}
+import Data.Foldable as D
 import qualified Data.Sequence as SEQ
 
 import Shuffle
@@ -69,7 +70,7 @@ newdeck =
   ]
 
 playdecks :: [Card]
-playdecks = concat $ Prelude.replicate 2 newdeck
+playdecks = D.concat $ Prelude.replicate 2 newdeck
 
 -- | One column of cards, with an idex of the row where the cards start
 -- | being visible. -1 means no visible cards (empty stack)
@@ -108,10 +109,18 @@ newtableau' (n:ns) cs t =
   newtableau' ns (SEQ.drop n cs)  (t SEQ.|> Stack {cards=SEQ.take n cs, visible=n-1})
 
 displayTableau :: Tableau -> IO ()
-displayTableau t = putStrLn $ displayStackRow 0 (SEQ.index t 0)
+displayTableau t =
+    let count = D.foldr max 0 (fmap (SEQ.length . cards) t)
+        revt = SEQ.reverse t
+    in do
+      putStrLn "  1   2   3   4   5   6   7   8   9  10"
+      putStrLn "======================================="
+      for_ [0..count-1] (\i -> putStrLn  (show (i+1) ++ " - " ++ D.foldr (f i) "" revt))
+  where
+    f i s a = a ++ " " ++ showStackRow i s ++ " "
 
 -- | display one entry from the Stack cards item
-displayStackRow ::  Int -> Stack -> String
-displayStackRow i s | i < visible s = "XX"
-                    | i >= SEQ.length (cards s) = "  "
+showStackRow ::  Int -> Stack -> String
+showStackRow i s | i < visible s = "XXX"
+                    | i >= SEQ.length (cards s) = "   "
                     | otherwise = show (SEQ.index (cards s) i)
