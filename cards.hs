@@ -3,6 +3,7 @@
 -}
 import Data.Foldable as D
 import qualified Data.Sequence as SEQ
+import Text.Printf
 
 import Shuffle
 
@@ -113,14 +114,14 @@ displayTableau t =
     let count = D.foldr max 0 (fmap (SEQ.length . cards) t)
         revt = SEQ.reverse t
     in do
-      putStrLn "  1   2   3   4   5   6   7   8   9  10"
-      putStrLn "======================================="
-      for_ [0..count-1] (\i -> putStrLn  (show (i+1) ++ " - " ++ D.foldr (f i) "" revt))
+      putStrLn "      1    2    3    4    5    6    7    8    9   10"
+      putStrLn "    ================================================"
+      for_ [0..count-1] (\i -> putStrLn  (printf "%3d|" (i+1) ++ D.foldr (f i) "" revt))
   where
-    f i s a = a ++ " " ++ showStackRow i s ++ " "
+    f i s a = a ++ showStackRow i s ++ "  "
 
 -- | display one entry from the Stack cards item
 showStackRow ::  Int -> Stack -> String
-showStackRow i s | i < visible s = "XXX"
+showStackRow i s | i < visible s = "..."
                     | i >= SEQ.length (cards s) = "   "
-                    | otherwise = show (SEQ.index (cards s) i)
+                    | otherwise = printf "%3s" $ show (SEQ.index (cards s) i)
