@@ -1,6 +1,8 @@
 {-
 
 -}
+import Control.Monad
+import Data.List
 import Data.Foldable as D
 import qualified Data.Sequence as SEQ
 import Text.Printf
@@ -86,11 +88,23 @@ type Tableau  = SEQ.Seq Stack
 main :: IO ()
 main =
     mainloop
-  where
-    mainloop :: IO ()
-    mainloop = do (_, t) <- newgame
-                  displayTableau t
-                  return ()
+
+mainloop :: IO ()
+mainloop = do (s, t) <- newgame
+              playloop s t
+
+playloop :: SEQ.Seq Card -> Tableau -> IO ()
+playloop s t = do displayTableau t
+                  line <- getLine
+                  case line of
+                    "quit" -> return ()
+                    "new" -> mainloop
+                    "deal" -> do
+                      (s', t') <- deal s t
+                      playloop s' t'
+                    _ -> do when ("move " `isPrefixOf` line)
+                            t' <- move (words . stripPrefix "move " line) t
+                            playloop s t'
 
 -- | start a new game
 newgame :: IO (SEQ.Seq Card, Tableau)
@@ -123,5 +137,11 @@ displayTableau t =
 -- | display one entry from the Stack cards item
 showStackRow ::  Int -> Stack -> String
 showStackRow i s | i < visible s = "..."
-                    | i >= SEQ.length (cards s) = "   "
-                    | otherwise = printf "%3s" $ show (SEQ.index (cards s) i)
+                 | i >= SEQ.length (cards s) = "   "
+                 | otherwise = printf "%3s" $ show (SEQ.index (cards s) i)
+
+deal :: SEQ.Seq Card -> Tableau -> IO (SEQ.Seq Card, Tableau)
+deal s t = return (s, t)
+
+move :: [String] -> Tableau -> IO Tableau
+move xs t = return t
