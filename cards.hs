@@ -1,13 +1,13 @@
 {-
 
 -}
-import Control.Monad
-import Data.List
-import Data.Foldable as D
+import           Control.Monad
+import           Data.Foldable as D
+import           Data.List
 import qualified Data.Sequence as SEQ
-import Text.Printf
+import           Text.Printf
 
-import Shuffle
+import           Shuffle
 
 data Suit = Clubs | Diamonds | Hearts | Spades
 
@@ -77,7 +77,7 @@ playdecks = D.concat $ Prelude.replicate 2 newdeck
 
 -- | One column of cards, with an idex of the row where the cards start
 -- | being visible. -1 means no visible cards (empty stack)
-data Stack = Stack { cards :: SEQ.Seq Card
+data Stack = Stack { cards   :: SEQ.Seq Card
                    , visible :: Int
                    } deriving (Show)
 
@@ -96,20 +96,18 @@ mainloop = do (s, t) <- newgame
 playloop :: SEQ.Seq Card -> Tableau -> IO ()
 playloop s t = do displayTableau t
                   line <- getLine
-                  case line of
-                    "quit" -> return ()
-                    "new" -> mainloop
-                    "deal" -> do
+                  case words line of
+                    ["quit"] -> return ()
+                    ["new"] -> mainloop
+                    ["deal"] -> do
                       (s', t') <- deal s t
                       playloop s' t'
-                    _ -> case stripPrefix "move " line of
-                            Nothing -> playloop s t
-                            Just ml ->
-                              do
-                                t' <- move (words ml) t
-                                playloop s t'
-
-
+                    "move":xs -> do
+                      t' <- move xs t
+                      playloop s t'
+                    _ -> do
+                      putStrLn "unknown input"
+                      playloop s t
 
 -- | start a new game
 newgame :: IO (SEQ.Seq Card, Tableau)
