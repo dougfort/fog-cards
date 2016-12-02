@@ -76,7 +76,7 @@ playdecks :: [Card]
 playdecks = D.concat $ Prelude.replicate 2 newdeck
 
 -- | One column of cards, with an idex of the row where the cards start
--- | being visible. -1 means no visible cards (empty stack)
+-- | being visible.
 data Stack = Stack { cards   :: SEQ.Seq Card
                    , visible :: Int
                    } deriving (Show)
@@ -99,14 +99,20 @@ playloop s t = do displayTableau t
                   case words line of
                     ["quit"] -> return ()
                     ["new"] -> mainloop
-                    ["deal"] -> do
-                      (s', t') <- deal s t
-                      playloop s' t'
-                    "move":xs -> do
-                      t' <- move xs t
-                      playloop s t'
+                    ["deal"] -> case deal s t of
+                                Left m -> do
+                                  putStrLn m
+                                  playloop s t
+                                Right (s', t') ->
+                                  playloop s' t'
+                    "move":xs -> case move xs t of
+                                   Left m -> do
+                                     putStrLn m
+                                     playloop s t
+                                   Right t' ->
+                                     playloop s t'
                     _ -> do
-                      putStrLn "unknown input"
+                      putStrLn ("unknown input: '" ++ line ++ "'")
                       playloop s t
 
 -- | start a new game
@@ -144,8 +150,11 @@ showStackRow i s | i < visible s = "..."
                  | otherwise = printf "%3s" $ show (SEQ.index (cards s) i)
 
 -- | Deal out a new Card to each stack
-deal :: SEQ.Seq Card -> Tableau -> IO (SEQ.Seq Card, Tableau)
-deal s t = return (s, t)
+deal :: SEQ.Seq Card -> Tableau -> Either String (SEQ.Seq Card, Tableau)
+deal cs t
+  | null cs = Left "empty deck"
+  | any (null . cards) t = Left "empty column"
+  | otherwise = Right (cs, t)
 
-move :: [String] -> Tableau -> IO Tableau
-move xs t = return t
+move :: [String] -> Tableau -> Either String Tableau
+move xs t = Left "'move' not implemented"
