@@ -154,7 +154,11 @@ deal :: SEQ.Seq Card -> Tableau -> Either String (SEQ.Seq Card, Tableau)
 deal cs t
   | null cs = Left "empty deck"
   | any (null . cards) t = Left "empty column"
-  | otherwise = Right (cs, t)
+  | otherwise =
+    let w = SEQ.length t
+        ss = SEQ.zip (SEQ.take w cs) t
+        cs' = SEQ.drop w cs
+    in Right (cs', foldr (\(c, s) t' -> (t' SEQ.|> Stack {cards=(cards s) SEQ.|> c, visible=(visible s)})) SEQ.empty ss)
 
 move :: [String] -> Tableau -> Either String Tableau
 move xs t = Left "'move' not implemented"
