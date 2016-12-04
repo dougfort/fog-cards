@@ -4,6 +4,7 @@
 import           Control.Monad
 import           Data.Foldable as D
 import           Data.List
+import           Data.Maybe
 import qualified Data.Sequence as SEQ
 import           Text.Printf
 
@@ -84,6 +85,12 @@ data Stack = Stack { cards   :: SEQ.Seq Card
 -- | The array of card stacks that forms the playing area
 type Tableau  = SEQ.Seq Stack
 
+-- | Command to append part (or all) of a Stack to to another Stack
+data Move = Move { sourceStack :: Int
+                 , sourceIndex :: Int
+                 , destStack   :: Int
+                 }
+
 -- | main entry point
 main :: IO ()
 main =
@@ -162,4 +169,20 @@ deal cs t
     in Right (cs', foldr f SEQ.empty ss)
 
 move :: [String] -> Tableau -> Either String Tableau
-move xs t = Left "'move' not implemented"
+move xs t = case parseMove xs of
+              Nothing -> Left "unparsable move command"
+              Just mc -> Left "'move' not implemented"
+
+parseMove :: [String] -> Maybe Move
+parseMove xs
+    | length is == 3 =
+      Just Move{sourceStack = is !! 0, sourceIndex = is !! 1, destStack = is !!2}
+    | otherwise =
+      Nothing
+  where
+    is = mapMaybe parseInt xs
+
+parseInt :: String -> Maybe Int
+parseInt s = case reads s :: [(Int, String)] of
+               [(n, "")] -> Just n
+               _ -> Nothing
