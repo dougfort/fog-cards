@@ -198,9 +198,9 @@ move xs t = do
 parseMove :: [String] -> Maybe Move
 parseMove xs
     | length xs == 3 =
-      Just Move{sourceStack = head is
-               , sourceIndex = is !! 1
-               , destStack = is !!2
+      Just Move{sourceStack = head is - 1
+               , sourceIndex = is !! 1 -1 
+               , destStack = is !!2 -1
                }
     | otherwise =
       Nothing
