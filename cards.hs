@@ -48,27 +48,43 @@ instance Show Rank where
   show Queen = "Q"
   show King  = "K"
 
+instance Enum Rank where
+  fromEnum r
+    | r == Ace   = 1
+    | r == R2    = 2
+    | r == R3    = 3
+    | r == R4    = 4
+    | r == R5    = 5
+    | r == R6    = 6
+    | r == R7    = 7
+    | r == R8    = 8
+    | r == R9    = 9
+    | r == R10   = 10
+    | r == Jack  = 11
+    | r == Queen = 12
+    | r == King  = 13
+    | otherwise = error "Prelude.Enum.Rank.fromEnum: bad argument"
+
+  toEnum n
+    | n == 1  = Ace
+    | n == 2  = R2
+    | n == 3  = R3
+    | n == 4  = R4
+    | n == 5  = R5
+    | n == 6  = R6
+    | n == 7  = R7
+    | n == 8  = R8
+    | n == 9  = R9
+    | n == 10 = R10
+    | n == 11 = Jack
+    | n == 12 = Queen
+    | n == 13 = King
+    | otherwise = error "Prelude.Enum.Rank.toEnum: bad argument"
+
 data Card = Card Suit Rank
 
 instance Show Card where
   show (Card s r) = show s ++ show r
-
--- | successor: returns true of the second card is a successor to the first
--- | does not require suits to match
-succ :: Card -> Card -> Bool
-succ (Card _ r1) (Card _ r2)  | r1 == R2 && r2 == Ace = True
-                              | r1 == R3 && r2 == R2 = True
-                              | r1 == R4 && r2 == R3 = True
-                              | r1 == R5 && r2 == R4 = True
-                              | r1 == R6 && r2 == R5 = True
-                              | r1 == R7 && r2 == R6 = True
-                              | r1 == R8 && r2 == R7 = True
-                              | r1 == R9 && r2 == R8 = True
-                              | r1 == R10 && r2 == R9 = True
-                              | r1 == Jack && r2 == R10 = True
-                              | r1 == Queen && r2 == Jack = True
-                              | r1 == King && r2 == Queen = True
-                              | otherwise = False
 
 type Deck = [Card]
 
@@ -198,12 +214,12 @@ move xs t = do
 parseMove :: [String] -> Maybe Move
 parseMove xs
     | length xs == 3 =
-      Just Move{sourceStack = head is - 1
-               , sourceIndex = is !! 1 -1 
+      return Move{sourceStack = head is - 1
+               , sourceIndex = is !! 1 -1
                , destStack = is !!2 -1
                }
     | otherwise =
-      Nothing
+      fail "unparseable move command"
   where
     is = mapMaybe parseInt xs
 
