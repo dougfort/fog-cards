@@ -216,7 +216,7 @@ parseMove xs
     | length xs == 3 =
       return Move{sourceStack = head is - 1
                , sourceIndex = is !! 1 -1
-               , destStack = is !!2 -1
+               , destStack = is !! 2 -1
                }
     | otherwise =
       fail "unparseable move command"
@@ -239,7 +239,7 @@ performMove t mc = do
 -- | this is defined in a later version of the Sequence package
 (!?) :: SEQ.Seq a -> Int -> Maybe a
 s !? i
-  | i <= 0 = Nothing
+  | i < 0 = Nothing
   | i >= SEQ.length s = Nothing
   | otherwise = Just (SEQ.index s i)
 
@@ -250,11 +250,9 @@ cut s i
   | i == visible s && visible s == 0 =
     Just (Stack {cards=SEQ.empty, visible=0}, cards s)
   | i == visible s =
-    let n = SEQ.length (cards s) - i in
-      Just (Stack {cards=SEQ.drop n (cards s), visible=visible s-1}, SEQ.take n (cards s))
+    Just (Stack {cards=SEQ.take i (cards s), visible=visible s-1}, SEQ.drop i (cards s))
   | otherwise =
-    let n = SEQ.length (cards s) - i in
-      Just (Stack {cards=SEQ.drop n (cards s), visible=visible s}, SEQ.take n (cards s))
+    Just (Stack {cards=SEQ.take i (cards s), visible=visible s}, SEQ.drop i (cards s))
 
 -- | paste a Sequence at the end of a stack
 paste :: Stack -> SEQ.Seq Card -> Maybe Stack
