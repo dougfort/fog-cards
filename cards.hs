@@ -2,9 +2,9 @@
 
 -}
 import           Control.Monad ()
+import           Data.Either
 import           Data.Foldable as D
 import           Data.List     ()
-import           Data.Maybe
 import qualified Data.Sequence as SEQ
 import           Text.Printf
 
@@ -145,16 +145,17 @@ playloop s t = do displayTableau t
                     ["quit"] -> return ()
                     ["new"] -> mainloop
                     ["deal"] -> case deal s t of
-                                Left m -> do
-                                  putStrLn m
+                                Left err -> do
+                                  putStrLn err
                                   playloop s t
                                 Right (s', t') ->
                                   playloop s' t'
                     "move":xs -> case move xs t of
-                                   Nothing -> do
-                                     putStrLn "invalid move"
+                                   Left err -> do
+                                     putStrLn err
+                                     putStrLn "foot"
                                      playloop s t
-                                   Just t' ->
+                                   Right t' ->
                                      playloop s t'
                     _ -> do
                       putStrLn ("unknown input: '" ++ line ++ "'")
@@ -203,15 +204,15 @@ deal cs t
     let w = SEQ.length t
         ss = SEQ.zip (SEQ.take w cs) t
         cs' = SEQ.drop w cs
-        f (c, s) t' = Stack {cards=cards s SEQ.|> c, visible=visible s} SEQ.<|  t' 
+        f (c, s) t' = Stack {cards=cards s SEQ.|> c, visible=visible s} SEQ.<|  t'
     in Right (cs', foldr f SEQ.empty ss)
 
-move :: [String] -> Tableau -> Maybe Tableau
+move :: [String] -> Tableau -> Either String Tableau
 move xs t = do
   mc <- parseMove xs
   performMove t mc
 
-parseMove :: [String] -> Maybe Move
+parseMove :: [String] -> Either String Move
 parseMove xs
     | length xs == 3 =
       return Move{sourceStack = head is - 1
@@ -219,22 +220,26 @@ parseMove xs
                , destStack = is !! 2 -1
                }
     | otherwise =
-      fail "unparseable move command"
+      Left "unparseable move command"
   where
-    is = mapMaybe parseInt xs
+    is = rights $ map parseInt xs
 
-parseInt :: String -> Maybe Int
+parseInt :: String -> Either String Int
 parseInt s = case reads s :: [(Int, String)] of
-               [(n, "")] -> Just n
-               _         -> Nothing
+               [(n, "")] -> Right n
+               _         -> Left ("unparseable int '" ++ s ++ "'")
 
-performMove :: Tableau -> Move -> Maybe Tableau
+performMove :: Tableau -> Move -> Either String Tableau
 performMove t mc = do
-  s <- t !? sourceStack mc
-  d <- t !? destStack mc
+  s <- case t !? sourceStack mc of
+         Nothing  -> Left ("invalid sourceStack: " ++ show mc)
+         Just val -> return val
+  d <- case t !? destStack mc of
+    Nothing  -> Left ("invalid destStack: " ++ show mc)
+    Just val -> return val
   (s', m) <- cut s (sourceIndex mc)
-  d' <- paste d m
-  return (SEQ.update (sourceStack mc) s' $ SEQ.update (destStack mc) d' t)
+  let d' = paste d m in
+    return (SEQ.update (sourceStack mc) s' $ SEQ.update (destStack mc) d' t)
 
 -- | this is defined in a later version of the Sequence package
 (!?) :: SEQ.Seq a -> Int -> Maybe a
@@ -244,16 +249,16 @@ s !? i
   | otherwise = Just (SEQ.index s i)
 
 -- | cut a Sequence of cards from the source source stack
-cut :: Stack -> Int -> Maybe (Stack, SEQ.Seq Card)
+cut :: Stack -> Int -> Either String (Stack, SEQ.Seq Card)
 cut s i
-  | i < visible s = Nothing
+  | i < visible s = Left ("cut point " ++ show i ++ " < visible " ++ show (visible s))
   | i == visible s && visible s == 0 =
-    Just (Stack {cards=SEQ.empty, visible=0}, cards s)
+    return (Stack {cards=SEQ.empty, visible=0}, cards s)
   | i == visible s =
-    Just (Stack {cards=SEQ.take i (cards s), visible=visible s-1}, SEQ.drop i (cards s))
+    return (Stack {cards=SEQ.take i (cards s), visible=visible s-1}, SEQ.drop i (cards s))
   | otherwise =
-    Just (Stack {cards=SEQ.take i (cards s), visible=visible s}, SEQ.drop i (cards s))
+    return (Stack {cards=SEQ.take i (cards s), visible=visible s}, SEQ.drop i (cards s))
 
 -- | paste a Sequence at the end of a stack
-paste :: Stack -> SEQ.Seq Card -> Maybe Stack
-paste s d = Just Stack {cards=cards s SEQ.>< d, visible=visible s}
+paste :: Stack -> SEQ.Seq Card -> Stack
+paste s d = Stack {cards=cards s SEQ.>< d, visible=visible s}
