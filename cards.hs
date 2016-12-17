@@ -203,7 +203,7 @@ deal cs t
     let w = SEQ.length t
         ss = SEQ.zip (SEQ.take w cs) t
         cs' = SEQ.drop w cs
-        f (c, s) t' = t' SEQ.|> Stack {cards=cards s SEQ.|> c, visible=visible s}
+        f (c, s) t' = Stack {cards=cards s SEQ.|> c, visible=visible s} SEQ.<|  t' 
     in Right (cs', foldr f SEQ.empty ss)
 
 move :: [String] -> Tableau -> Maybe Tableau
