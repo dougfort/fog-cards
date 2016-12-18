@@ -1,7 +1,7 @@
 {-
 
 -}
-import           Control.Monad ()
+import           Control.Monad
 import           Data.Either
 import           Data.Foldable as D
 import           Data.List     ()
@@ -120,12 +120,12 @@ data Stack = Stack { cards   :: SEQ.Seq Card
 type Tableau  = SEQ.Seq Stack
 
 -- | Command to append part (or all) of a Stack to to another Stack
-data Move = Move { sourceStack :: Int
-                 , sourceIndex :: Int
-                 , destStack   :: Int
-                 }
+data MoveCommand = MoveCommand { sourceStack :: Int
+                               , sourceIndex :: Int
+                               , destStack   :: Int
+                               }
 
-instance Show Move where
+instance Show MoveCommand where
   show m = "(" ++ show (sourceStack m) ++ ", " ++ show (sourceIndex m) ++ ") -> " ++
     show (destStack m)
 
@@ -153,7 +153,6 @@ playloop s t = do displayTableau t
                     "move":xs -> case move xs t of
                                    Left err -> do
                                      putStrLn err
-                                     putStrLn "foot"
                                      playloop s t
                                    Right t' ->
                                      playloop s t'
@@ -210,15 +209,16 @@ deal cs t
 move :: [String] -> Tableau -> Either String Tableau
 move xs t = do
   mc <- parseMove xs
+  _ <- moveIsValid t mc
   performMove t mc
 
-parseMove :: [String] -> Either String Move
+parseMove :: [String] -> Either String MoveCommand
 parseMove xs
     | length xs == 3 =
-      return Move{sourceStack = head is - 1
-               , sourceIndex = is !! 1 -1
-               , destStack = is !! 2 -1
-               }
+      return MoveCommand{sourceStack = head is - 1
+                        , sourceIndex = is !! 1 -1
+                        , destStack = is !! 2 -1
+                        }
     | otherwise =
       Left "unparseable move command"
   where
@@ -229,24 +229,27 @@ parseInt s = case reads s :: [(Int, String)] of
                [(n, "")] -> Right n
                _         -> Left ("unparseable int '" ++ s ++ "'")
 
-performMove :: Tableau -> Move -> Either String Tableau
+moveIsValid :: Tableau -> MoveCommand -> Either String ()
+moveIsValid t mc = do
+  s <- getStack t (sourceStack mc)
+  _ <- getStack t (destStack mc)
+  when (sourceIndex mc < visible s) $
+    Left ("cut point " ++ show (sourceIndex mc) ++ " < visible " ++ show (visible s))
+  Right ()
+
+performMove :: Tableau -> MoveCommand -> Either String Tableau
 performMove t mc = do
-  s <- case t !? sourceStack mc of
-         Nothing  -> Left ("invalid sourceStack: " ++ show mc)
-         Just val -> return val
-  d <- case t !? destStack mc of
-    Nothing  -> Left ("invalid destStack: " ++ show mc)
-    Just val -> return val
-  (s', m) <- cut s (sourceIndex mc)
-  let d' = paste d m in
+  s <- getStack t (sourceStack mc)
+  d <- getStack t (destStack mc)
+  (s', c) <- cut s (sourceIndex mc)
+  let d' = paste d c in
     return (SEQ.update (sourceStack mc) s' $ SEQ.update (destStack mc) d' t)
 
--- | this is defined in a later version of the Sequence package
-(!?) :: SEQ.Seq a -> Int -> Maybe a
-s !? i
-  | i < 0 = Nothing
-  | i >= SEQ.length s = Nothing
-  | otherwise = Just (SEQ.index s i)
+getStack :: Tableau -> Int -> Either String Stack
+getStack t i
+  | i < 0 = Left ("index too small " ++ show i)
+  | i >= SEQ.length t = Left ("index too large " ++ show i)
+  | otherwise = return (SEQ.index t i)
 
 -- | cut a Sequence of cards from the source source stack
 cut :: Stack -> Int -> Either String (Stack, SEQ.Seq Card)
