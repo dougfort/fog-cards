@@ -11,6 +11,7 @@ import           Text.Printf
 import           Shuffle
 
 data Suit = Clubs | Diamonds | Hearts | Spades
+  deriving (Eq)
 
 instance Show Suit where
   show Clubs    = "C"
@@ -235,14 +236,24 @@ moveIsValid t mc = do
   d <- getStack t (destStack mc)
   when (sourceIndex mc < visible s) $
     Left ("cut point " ++ show (sourceIndex mc) ++ " < visible " ++ show (visible s))
+
   if SEQ.null (cards d) then
     Right ()
-  else do
-    Card _ rd <- getLastCard d
-    Card _ rs <- getCardAt s (sourceIndex mc)
-    unless (rd == succ rs) $
-      Left ("dest rank " ++ show rd ++ " not successor of " ++ show rs)
-    Right ()
+  else
+    let cs = cards s
+        cutSeq = SEQ.drop (sourceIndex mc) cs
+        Card cfs cfr = SEQ.index cutSeq 0
+        cd = cards d
+        Card _ dlr = SEQ.index cd (SEQ.length cd - 1)
+        in do
+
+        unless (dlr == succ cfr) $
+          Left ("dest rank " ++ show dlr ++ " not successor of " ++ show cfr)
+
+        unless (SEQ.null $ SEQ.filter (\(Card suit _) -> suit /= cfs) cutSeq) $
+          Left "cards to be moved must be of same suit"
+
+        Right ()
 
 performMove :: Tableau -> MoveCommand -> Either String Tableau
 performMove t mc = do
@@ -257,12 +268,6 @@ getStack t i
   | i < 0 = Left ("index too small " ++ show i)
   | i >= SEQ.length t = Left ("index too large " ++ show i)
   | otherwise = return (SEQ.index t i)
-
-getLastCard :: Stack -> Either String Card
-getLastCard s = Right (SEQ.index (cards s) (SEQ.length (cards s) - 1))
-
-getCardAt :: Stack -> Int -> Either String Card
-getCardAt s i = Right (SEQ.index (cards s) i)
 
 -- | cut a Sequence of cards from the source source stack
 cut :: Stack -> Int -> Either String (Stack, SEQ.Seq Card)
