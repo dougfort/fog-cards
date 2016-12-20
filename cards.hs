@@ -141,6 +141,9 @@ mainloop = do (s, t) <- newgame
 
 playloop :: SEQ.Seq Card -> Tableau -> IO ()
 playloop s t = do displayTableau t
+                  putStrLn ""
+                  putStrLn (show (SEQ.length s) ++ " cards in left in deck")
+                  putStrLn ""
                   line <- getLine
                   case words line of
                     ["quit"] -> return ()
@@ -236,6 +239,8 @@ moveIsValid t mc = do
   d <- getStack t (destStack mc)
   when (sourceIndex mc < visible s) $
     Left ("cut point " ++ show (sourceIndex mc) ++ " < visible " ++ show (visible s))
+  when (sourceIndex mc >= SEQ.length (cards s)) $
+      Left ("cut point " ++ show (sourceIndex mc) ++ " >= length " ++ show (sourceIndex mc))
 
   if SEQ.null (cards d) then
     Right ()
