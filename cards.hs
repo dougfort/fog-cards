@@ -32,7 +32,7 @@ data Rank = Ace
           | Jack
           | Queen
           | King
-  deriving (Eq)
+  deriving (Eq, Ord, Bounded)
 
 instance Show Rank where
   show Ace   = "A"
@@ -81,6 +81,11 @@ instance Enum Rank where
     | n == 12 = Queen
     | n == 13 = King
     | otherwise = error "Prelude.Enum.Rank.toEnum: bad argument"
+
+-- | the size of a complete run of a suit.
+-- | There should be some way to get this from the definition of Rank
+runSize :: Int
+runSize = 13
 
 data Card = Card Suit Rank
 
@@ -160,6 +165,12 @@ playloop s t = do displayTableau t
                                      playloop s t
                                    Right t' ->
                                      playloop s t'
+                    "eat":[xs] -> case eat xs t of
+                                  Left err -> do
+                                    putStrLn err
+                                    playloop s t
+                                  Right t' ->
+                                    playloop s t'
                     _ -> do
                       putStrLn ("unknown input: '" ++ line ++ "'")
                       playloop s t
@@ -228,11 +239,6 @@ parseMove xs
   where
     is = rights $ map parseInt xs
 
-parseInt :: String -> Either String Int
-parseInt s = case reads s :: [(Int, String)] of
-               [(n, "")] -> Right n
-               _         -> Left ("unparseable int '" ++ s ++ "'")
-
 moveIsValid :: Tableau -> MoveCommand -> Either String ()
 moveIsValid t mc = do
   s <- getStack t (sourceStack mc)
@@ -240,7 +246,7 @@ moveIsValid t mc = do
   when (sourceIndex mc < visible s) $
     Left ("cut point " ++ show (sourceIndex mc) ++ " < visible " ++ show (visible s))
   when (sourceIndex mc >= SEQ.length (cards s)) $
-      Left ("cut point " ++ show (sourceIndex mc) ++ " >= length " ++ show (sourceIndex mc))
+      Left ("cut point " ++ show (sourceIndex mc) ++ " >= length " ++ show (SEQ.length (cards s)))
 
   if SEQ.null (cards d) then
     Right ()
@@ -268,12 +274,6 @@ performMove t mc = do
   let d' = paste d c in
     return (SEQ.update (sourceStack mc) s' $ SEQ.update (destStack mc) d' t)
 
-getStack :: Tableau -> Int -> Either String Stack
-getStack t i
-  | i < 0 = Left ("index too small " ++ show i)
-  | i >= SEQ.length t = Left ("index too large " ++ show i)
-  | otherwise = return (SEQ.index t i)
-
 -- | cut a Sequence of cards from the source source stack
 cut :: Stack -> Int -> Either String (Stack, SEQ.Seq Card)
 cut s i
@@ -288,3 +288,59 @@ cut s i
 -- | paste a Sequence at the end of a stack
 paste :: Stack -> SEQ.Seq Card -> Stack
 paste s d = Stack {cards=cards s SEQ.>< d, visible=visible s}
+
+eat :: String -> Tableau -> Either String Tableau
+eat xs t = do
+  x <- parseInt xs
+  let stackIndex = x -1 in do
+    _ <- eatIsValid t stackIndex
+    performEat t stackIndex
+
+eatIsValid :: Tableau -> Int -> Either String ()
+eatIsValid t stackIndex = do
+    s <- getStack t stackIndex
+    when (SEQ.length (cards s) < runSize) $
+        Left ("too few cards to eat " ++ show (SEQ.length (cards s)))
+    let
+      cs = cards s
+      end = SEQ.length cs - 1
+      endCard@(Card _ rank) = SEQ.index cs end in
+
+      if rank == Ace then
+        validRun cs (end-1) endCard
+      else
+        Left ("run does not start with Ace " ++ show rank)
+
+validRun :: SEQ.Seq Card -> Int -> Card -> Either String ()
+validRun cs i (Card prevSuit prevRank)
+    | suit /= prevSuit = Left "suit mismatch"
+    | rank /= succ prevRank = Left "sequence error"
+    | rank == King = Right ()
+    | otherwise = validRun cs (i-1) c
+  where
+    c@(Card suit rank) = SEQ.index cs i
+
+performEat :: Tableau -> Int -> Either String Tableau
+performEat t stackIndex = do
+  s <- getStack t stackIndex
+  let cs = cards s
+      i = SEQ.length cs - runSize
+      v = visible s
+      v' = if v == i then
+             v - 1
+           else
+             v
+      s' = Stack {cards=SEQ.take i cs, visible=v'} in
+
+      return (SEQ.update stackIndex s' t)
+
+parseInt :: String -> Either String Int
+parseInt s = case reads s :: [(Int, String)] of
+               [(n, "")] -> Right n
+               _         -> Left ("unparseable int '" ++ s ++ "'")
+
+getStack :: Tableau -> Int -> Either String Stack
+getStack t i
+ | i < 0 = Left ("index too small " ++ show i)
+ | i >= SEQ.length t = Left ("index too large " ++ show i)
+ | otherwise = return (SEQ.index t i)
