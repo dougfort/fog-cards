@@ -253,7 +253,7 @@ moveIsValid t mc = do
   else
     let cs = cards s
         cutSeq = SEQ.drop (sourceIndex mc) cs
-        Card cfs cfr = SEQ.index cutSeq 0
+        Card _ cfr = SEQ.index cutSeq 0
         cd = cards d
         Card _ dlr = SEQ.index cd (SEQ.length cd - 1)
         in do
@@ -261,8 +261,8 @@ moveIsValid t mc = do
         unless (dlr == succ cfr) $
           Left ("dest rank " ++ show dlr ++ " not successor of " ++ show cfr)
 
-        unless (SEQ.null $ SEQ.filter (\(Card suit _) -> suit /= cfs) cutSeq) $
-          Left "cards to be moved must be of same suit"
+        unless (validRun cutSeq) $
+          Left "cards to be moved not a valid run"
 
         Right ()
 
@@ -299,26 +299,26 @@ eat xs t = do
 eatIsValid :: Tableau -> Int -> Either String ()
 eatIsValid t stackIndex = do
     s <- getStack t stackIndex
-    when (SEQ.length (cards s) < runSize) $
-        Left ("too few cards to eat " ++ show (SEQ.length (cards s)))
     let
       cs = cards s
-      end = SEQ.length cs - 1
-      endCard@(Card _ rank) = SEQ.index cs end in
+      len = SEQ.length cs
+      dropLen = len - runSize in do
+        when (len < runSize) $
+          Left ("too few cards to eat " ++ show len)
+        unless (validRun (SEQ.drop dropLen cs)) $
+          Left "not a valid run"
 
-      if rank == Ace then
-        validRun cs (end-1) endCard
-      else
-        Left ("run does not start with Ace " ++ show rank)
-
-validRun :: SEQ.Seq Card -> Int -> Card -> Either String ()
-validRun cs i (Card prevSuit prevRank)
-    | suit /= prevSuit = Left "suit mismatch"
-    | rank /= succ prevRank = Left "sequence error"
-    | rank == King = Right ()
-    | otherwise = validRun cs (i-1) c
-  where
-    c@(Card suit rank) = SEQ.index cs i
+-- | return true if a sequence of cards is in order and all of a suit
+validRun :: SEQ.Seq Card -> Bool
+validRun cs
+  | SEQ.length cs <= 1 = True
+  | otherwise =
+      let
+        n = SEQ.length cs - 1
+        Card ns nr = SEQ.index cs n
+        m = n - 1
+        Card ms mr = SEQ.index cs m in
+            (ms == ns && mr == succ nr) && validRun (SEQ.take n cs)
 
 performEat :: Tableau -> Int -> Either String Tableau
 performEat t stackIndex = do
