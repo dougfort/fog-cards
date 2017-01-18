@@ -171,6 +171,9 @@ playloop s t = do displayTableau t
                                     playloop s t
                                   Right t' ->
                                     playloop s t'
+                    ["scan"] -> let _ = scan t in
+                                  -- fmap print ms
+                                  playloop s t
                     _ -> do
                       putStrLn ("unknown input: '" ++ line ++ "'")
                       playloop s t
@@ -326,13 +329,21 @@ performEat t stackIndex = do
   let cs = cards s
       i = SEQ.length cs - runSize
       v = visible s
-      v' = if v == i then
-             v - 1
-           else
-             v
+      v' = if v == i then v - 1 else v
       s' = Stack {cards=SEQ.take i cs, visible=v'} in
 
       return (SEQ.update stackIndex s' t)
+
+-- | find all valid moves in the tableau
+scan :: Tableau -> SEQ.Seq MoveCommand
+scan t = SEQ.foldrWithIndex outer SEQ.empty t
+  -- SEQ.foldrWithIndex (Int -> a -> b -> b) -> b -> Seq a -> b Source #
+  where
+    outer :: Int -> Stack -> SEQ.Seq MoveCommand -> SEQ.Seq MoveCommand
+    outer i s acc = SEQ.foldrWithIndex inner acc t
+    inner :: Int -> Stack -> SEQ.Seq MoveCommand -> SEQ.Seq MoveCommand
+
+
 
 parseInt :: String -> Either String Int
 parseInt s = case reads s :: [(Int, String)] of
